@@ -1,24 +1,42 @@
-// Fragment pédagogique : le protocole et la gestion des erreurs sont à compléter.
-var net = require('net');
-var client = new net.Socket();
+const net = require('net');
+const readline = require('readline');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+
+// 1. On récupère les options tapées dans la commande (ex: --name david)
+const argv = yargs(hideBin(process.argv))
+    .option('name', {
+        type: 'string',
+        description: "Nom de l'utilisateur",
+        demandOption: true // Rend l'option obligatoire !
+    })
+    .help()
+    .argv;
+
+const username = argv.name;
+console.log(`Bienvenue, vous jouez sous le nom de : ${username}`);
+
+// 2. On prépare la socket de connexion
+const client = new net.Socket();
 
 client.connect(8080, '127.0.0.1', function() {
-    console.log('Connected');
-    process.stdout.write('>');
+    console.log('Connecté au serveur !');
 });
 
+// 3. Quand le serveur nous répond
 client.on('data', function(data) {
-    console.log('Received: ' + data);
-    process.stdout.write('>');
+    console.log('Reçu du serveur : ' + data);
 });
 
-process.stdin.resume();
-process.stdin.setEncoding('utf8');
-process.stdout.write('>');
-process.stdin.on('data', (text) => {
-    switch (text) {
-        case 'hello\n':
-            client.write(JSON.stringify({ action: 'client-hello' }));
-            break;
+// 4. On écoute ce que l'utilisateur tape au clavier avec readline
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+rl.on('line', (line) => {
+    // Si l'utilisateur tape hello
+    if (line === 'hello') {
+        client.write(JSON.stringify({ action: 'client-hello' }));
     }
 });
