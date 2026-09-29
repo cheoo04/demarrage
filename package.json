@@ -1,0 +1,12 @@
+{
+  "name": "messagerie-tcp-demarrage",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "server": "node src/server/server.js",
+    "client": "node src/client/client.js"
+  },
+  "dependencies": {
+    "yargs": "17.7.2"
+  }
+}
