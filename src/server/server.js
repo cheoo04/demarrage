@@ -1,5 +1,10 @@
 // Fragment pédagogique : ne pas exposer sur Internet.
 var net = require('net');
+const debug = require('debug')('server')
+
+
+const host = process.env.host || '127.0.0.1';
+const port = process.env.port ? parseInt(process.env.port) : 8080;
 
 var server = net.createServer((socket) => {
     console.log('CONNECTED from ' + socket.remoteAddress + ':' + socket.remotePort);
@@ -19,4 +24,4 @@ var server = net.createServer((socket) => {
                 console.log(msg);
         }
     });
-}).listen(8080, '127.0.0.1');
+}).listen(port, host);
