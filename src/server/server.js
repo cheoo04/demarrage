@@ -49,9 +49,9 @@ var server = net.createServer((socket) => {
                 
                 clients.set(socket, pseudo);
                 socket.write(JSON.stringify({
-                    sender: msg.sender,
+                    sender: pseudo,
                     action: 'server-hello',
-                    msg: `Bienvenue ${msg.sender}`
+                    msg: `Bienvenue ${pseudo}`
                 }));
                 break;
 
