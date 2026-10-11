@@ -44,7 +44,7 @@ rl.on('line', (line) => {
     if (line.startsWith('s;')) {
         const parts = line.split(';');
 
-        if (parts >= 3){
+        if (parts.length >= 3){
             const dest = parts[1];
             const msg = parts.slice(2).join(';');
             client.write(JSON.stringify({
@@ -57,13 +57,6 @@ rl.on('line', (line) => {
             console.log('format invalide, veillez ecrire: s;destinataire;message')
         }
     }
-    
-    if (line == 'hello') {
-        client.write(JSON.stringify({
-            sender: 'username',
-            action: 'client-hello'
-        }))
-    };
 });
 
 // À RETIRER APRÈS

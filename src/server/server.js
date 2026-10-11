@@ -55,6 +55,33 @@ var server = net.createServer((socket) => {
                 }));
                 break;
 
+
+            case 'client-send':
+                //nom d'utilisateur vide
+                let destsocket = null;
+                for (const [sock, pers] of clients.entries()){
+                    if (pers===msg.dest){
+                        destsocket = sock;
+                        break;
+                    }
+                    
+                };
+                
+                if (!destsocket){
+                    socket.write(JSON.stringify({
+                        action: 'server-error',
+                        msg: `L'utilisateur ${msg.dest} est introuvable ou n'est pas connecté`
+                    }))
+                    break;
+                }
+
+                destsocket.write(JSON.stringify({
+                    sender: clients.get(socket),
+                    msg: msg.msg,
+                    action: 'server-message',
+                }));
+                break;
+
         }
     });
 
