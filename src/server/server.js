@@ -81,6 +81,18 @@ var server = net.createServer((socket) => {
                     action: 'server-message',
                 }));
                 break;
+            
+            case 'client-broadcast':
+                for (const sock of clients.keys()) {
+                    if (sock !== socket) {
+                        sock.write(JSON.stringify({
+                            sender: clients.get(socket),
+                            msg: msg.msg,
+                            action: 'server-broadcast'
+                        }))
+                    };
+                };
+                break;
 
         }
     });

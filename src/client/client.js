@@ -42,11 +42,11 @@ const rl = readline.createInterface({
 
 rl.on('line', (line) => {
     if (line.startsWith('s;')) {
-        const parts = line.split(';');
+        const cmd_mp = line.split(';');
 
-        if (parts.length >= 3){
-            const dest = parts[1];
-            const msg = parts.slice(2).join(';');
+        if (cmd_mp.length >= 3){
+            const dest = cmd_mp[1];
+            const msg = cmd_mp.slice(2).join(';');
             client.write(JSON.stringify({
                 sender: username,
                 dest: dest,
@@ -56,7 +56,18 @@ rl.on('line', (line) => {
         } else {
             console.log('format invalide, veillez ecrire: s;destinataire;message')
         }
-    }
+    } else if (line.startsWith('b;')) {
+        const msg = line.slice(2).trim();
+        if (msg) {
+            client.write(JSON.stringify({
+                sender: username,
+                msg: msg,
+                action: 'client-broadcast'
+            }))
+        } else {
+            console.log('Veillez envoyer un message valide')
+        };   
+    };
 });
 
 // À RETIRER APRÈS
