@@ -31,24 +31,40 @@ client.connect(8080, '127.0.0.1', function () {
 // 3. Quand le serveur nous répond
 client.on('data', function (data) {
     const msg = JSON.parse(data);
-    console.log('Reçu du serveur : ' + data);
 
-    switch (donnee.action){
+    switch (msg.action){
         case ACTIONS.SERVER_HELLO:
             console.log(msg.msg);
+            break;
+
         case ACTIONS.SERVER_MESSAGE:
-            console.log(`[Message de ${msg.sender}] : ${msg.msg}`)
+            console.log(`[Message de ${msg.sender}] : ${msg.msg}`);
+            break;
+
         case ACTIONS.SERVER_BROADCAST:
-            console.log(`[GÉNÉRAL - ${msg.sender}] : ${msg.msg}`)
+            console.log(`[GÉNÉRAL - ${msg.sender}] : ${msg.msg}`);
+            break;
+
         case ACTIONS.SERVER_LIST_CLIENTS:
-            console.log(`Utilisateurs en ligne (${msg.clients.length}) : ${msg.clients.join(', ')}`)
+            console.log(`Utilisateurs en ligne (${msg.clients.length}) : ${msg.clients.join(', ')}`);
+            break;
+
         case ACTIONS.SERVER_JOIN:
-            console.log(`[+] ${msg.msg}`)
+            console.log(`[+] ${msg.msg}`);
+            break;
+
         case ACTIONS.SERVER_LEAVE:
-            console.log(`[-] ${msg.msg}`)
+            console.log(`[-] ${msg.msg}`);
+            break;
+
         case ACTIONS.SERVER_ERROR:
-            console.error(`[ERREUR] ${msg.msg}`)
+            console.error(`[ERREUR] ${msg.msg}`);
+            break;
+
         case ACTIONS.SERVER_QUIT:
+            console.log(msg.msg)
+            process.exit(0);
+            break;
     }
 
 
