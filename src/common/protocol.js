@@ -19,7 +19,13 @@ const ACTIONS = {
     SERVER_ERROR: 'server-error'
 };
 
+function sendJson(socket, obj) {
+    if (socket.writable) {
+        socket.write(JSON.stringify(obj) + '\n');
+    }
+}
+
 // On exporte l'objet pour qu'il soit utilisable ailleurs
 module.exports = {
-    ACTIONS
+    ACTIONS, sendJson
 };
