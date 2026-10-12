@@ -3,6 +3,7 @@ const readline = require('readline');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 const debug = require('debug')('client');
+const { ACTIONS } = require('../common/protocol');
 
 // 1. On récupère les options tapées dans la commande (ex: --name david)
 const argv = yargs(hideBin(process.argv))
@@ -15,7 +16,6 @@ const argv = yargs(hideBin(process.argv))
     .argv;
 
 const username = argv.name;
-console.log(`Bienvenue, vous êtes connecté sous le nom de : ${username}`);
 
 // 2. On prépare la socket de connexion
 const client = new net.Socket();
@@ -24,13 +24,36 @@ client.connect(8080, '127.0.0.1', function () {
     console.log('Connexion au server...');
     client.write(JSON.stringify({
         sender: username,
-        action: 'client-hello'
+        action: ACTIONS.CLIENT_HELLO
     }));
 });
 
 // 3. Quand le serveur nous répond
 client.on('data', function (data) {
+    const msg = JSON.parse(data);
     console.log('Reçu du serveur : ' + data);
+
+    switch (donnee.action){
+        case ACTIONS.SERVER_HELLO:
+            console.log(msg.msg);
+        case ACTIONS.SERVER_MESSAGE:
+            console.log(`[Message de ${msg.sender}] : ${msg.msg}`)
+        case ACTIONS.SERVER_BROADCAST:
+            console.log(`[GÉNÉRAL - ${msg.sender}] : ${msg.msg}`)
+        case ACTIONS.SERVER_LIST_CLIENTS:
+            console.log(`Utilisateurs en ligne (${msg.clients.length}) : ${msg.clients.join(', ')}`)
+        case ACTIONS.SERVER_JOIN:
+            console.log(`[+] ${msg.msg}`)
+        case ACTIONS.SERVER_LEAVE:
+            console.log(`[-] ${msg.msg}`)
+        case ACTIONS.SERVER_ERROR:
+            console.error(`[ERREUR] ${msg.msg}`)
+        case ACTIONS.SERVER_QUIT:
+    }
+
+
+
+
 });
 
 // 4. On écoute ce que l'utilisateur tape au clavier avec readline
@@ -51,7 +74,7 @@ rl.on('line', (line) => {
                 sender: username,
                 dest: dest,
                 msg: msg,
-                action: 'client-send'
+                action: ACTIONS.CLIENT_SEND
             }));            
         } else {
             console.log('format invalide, veillez ecrire: s;destinataire;message')
@@ -62,11 +85,21 @@ rl.on('line', (line) => {
             client.write(JSON.stringify({
                 sender: username,
                 msg: msg,
-                action: 'client-broadcast'
+                action: ACTIONS.CLIENT_BROADCAST
             }))
         } else {
             console.log('Veillez envoyer un message valide')
         };   
+    } else if (line.trim() === 'ls;'){
+        client.write(JSON.stringify({
+            sender: username,
+            action: ACTIONS.CLIENT_LIST_CLIENTS
+        }))
+    } else if (line.trim() === 'q;'){
+        client.write(JSON.stringify({
+            sender: username,
+            action: ACTIONS.CLIENT_QUIT
+        }))
     };
 });
 

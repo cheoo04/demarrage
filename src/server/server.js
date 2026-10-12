@@ -1,7 +1,7 @@
 // Fragment pédagogique : ne pas exposer sur Internet.
 var net = require('net');
 const debug = require('debug')('server')
-
+const { ACTIONS } = require('../common/protocol');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
@@ -16,7 +16,7 @@ var server = net.createServer((socket) => {
         // commande sans presentation
         if (!clients.has(socket) && msg.action != "client-hello") {
             socket.write(JSON.stringify({
-                action: 'server-error',
+                action: ACTIONS.SERVER_ERROR,
                 msg: 'Veillez vous presenter !'
             }))
             socket.end();
@@ -29,7 +29,7 @@ var server = net.createServer((socket) => {
                 const pseudo = msg.sender ? msg.sender.trim() : "";
                 if (!pseudo) {
                     socket.write(JSON.stringify({
-                        action: 'server-error',
+                        action: ACTIONS.SERVER_ERROR,
                         msg: 'Veuillez renseigner un nom d"tilisateur'
                     }))
                     socket.end();
@@ -40,7 +40,7 @@ var server = net.createServer((socket) => {
                 const nom = Array.from(clients.values()).includes(pseudo);
                 if (nom) {
                     socket.write(JSON.stringify({
-                        action: 'server-error',
+                        action: ACTIONS.SERVER_ERROR,
                         msg: 'Cet utilisateur est deja connecté'
                     }))
                     socket.end();
@@ -50,9 +50,19 @@ var server = net.createServer((socket) => {
                 clients.set(socket, pseudo);
                 socket.write(JSON.stringify({
                     sender: pseudo,
-                    action: 'server-hello',
+                    action: ACTIONS.SERVER_HELLO,
                     msg: `Bienvenue ${pseudo}`
                 }));
+                
+                for (const sock of clients.keys()) {
+                    if (sock !== socket) {
+                        sock.write(JSON.stringify({
+                            sender: clients.get(socket),
+                            action: ACTIONS.SERVER_JOIN,
+                            msg: `${clients.get(socket)} est connecté`
+                        }))
+                    };
+                };
                 break;
 
 
@@ -63,13 +73,12 @@ var server = net.createServer((socket) => {
                     if (pers===msg.dest){
                         destsocket = sock;
                         break;
-                    }
-                    
+                    }   
                 };
                 
                 if (!destsocket){
                     socket.write(JSON.stringify({
-                        action: 'server-error',
+                        action: ACTIONS.SERVER_ERROR,
                         msg: `L'utilisateur ${msg.dest} est introuvable ou n'est pas connecté`
                     }))
                     break;
@@ -78,7 +87,7 @@ var server = net.createServer((socket) => {
                 destsocket.write(JSON.stringify({
                     sender: clients.get(socket),
                     msg: msg.msg,
-                    action: 'server-message',
+                    action: ACTIONS.SERVER_MESSAGE,
                 }));
                 break;
             
@@ -88,18 +97,46 @@ var server = net.createServer((socket) => {
                         sock.write(JSON.stringify({
                             sender: clients.get(socket),
                             msg: msg.msg,
-                            action: 'server-broadcast'
+                            action: ACTIONS.SERVER_BROADCAST
                         }))
                     };
                 };
                 break;
+            
+            case 'client-list-clients':
+                const list_u = Array.from(clients.values());
+                socket.write(JSON.stringify({
+                    sender: clients.get(socket),
+                    clients: list_u,
+                    action: ACTIONS.SERVER_LIST_CLIENTS
+                }))
+                break;
 
-        }
+            case 'client-quit' :
+                socket.write(JSON.stringify({
+                    sender: clients.get(socket),
+                    msg: 'Vous êtes deconnecté !',
+                    action: ACTIONS.SERVER_QUIT
+                }))
+                socket.end();
+                break;   
+        }   
     });
 
     socket.on('close', () => {
-        debug(`connexionn close from ${socket.remoteAddress} : ${socket.remotePort}`)
+        const pseudo = clients.get(socket);
         clients.delete(socket);
+        if (pseudo) {
+            for (const sock of clients.keys()) {
+                sock.write(JSON.stringify({
+                        sender: pseudo,
+                        msg: `${pseudo} est deconnecté`,
+                        action: ACTIONS.SERVER_LEAVE,
+                }))
+            };
+        };
+        debug(`connexionn close from ${socket.remoteAddress} : ${socket.remotePort}`)
+
     });
 
     socket.on('error', (err) => {
