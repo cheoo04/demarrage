@@ -109,7 +109,7 @@ function getMessages(groupName, requester){
     } else if (!grpMsg.members.has(requester)){
         return {error: "Vous devez être membre pour consulter l'historique"};
     }
-    return {success: true, group: grpMsg, messages: grpMsg.messages};
+    return {success: true, group: groupName, messages: grpMsg.messages};
 }
 
 module.exports = {

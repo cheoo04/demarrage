@@ -113,7 +113,7 @@ function parseCommand(line, username) {
     }
 
     if (line.startsWith('messages;')){
-        grp = line.slice(9).trim();
+        const grp = line.slice(9).trim();
         return {
             sender: username,
             group: grp,

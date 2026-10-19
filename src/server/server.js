@@ -203,7 +203,9 @@ function traiterAction(socket, msg) {
                 for (const membre of res.members) {
                     if (membre !== sender) {
                         const sock = getSocketByPseudo(membre);
-                        sendJson(sock, {action: ACTIONS.SERVER_GROUP_MESSAGE, group: msg.group, sender: sender, msg:msg.msg});
+                        if (sock) {
+                            sendJson(sock, {action: ACTIONS.SERVER_GROUP_MESSAGE, group: msg.group, sender: sender, msg:msg.msg});
+                        }
                     }
                 }
             }
