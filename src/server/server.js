@@ -67,7 +67,6 @@ function traiterAction(socket, msg) {
                 msg: `Bienvenue ${pseudo}`
             });
             
-            // Diffusion d'arrivée simplifiée
             broadcast({
                 sender: pseudo,
                 action: ACTIONS.SERVER_JOIN,
@@ -77,7 +76,6 @@ function traiterAction(socket, msg) {
         }
 
         case ACTIONS.CLIENT_SEND: {
-            // Recherche du destinataire simplifiée
             const destsocket = getSocketByPseudo(msg.dest);
             
             if (!destsocket) {
@@ -132,9 +130,16 @@ function traiterAction(socket, msg) {
             const res = gestionnaireGroupe.create(groupName, createur);
 
             if (res.error) {
-                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+                sendJson(socket, { 
+                    action: ACTIONS.SERVER_ERROR, 
+                    msg: res.error 
+                });
             } else {
-                sendJson(socket, { action: ACTIONS.SERVER_HELLO, sender: res.sender, msg: res.msg });
+                sendJson(socket, {
+                    action: ACTIONS.SERVER_HELLO, 
+                    sender: res.sender, 
+                    msg: res.msg 
+                });
             }
             break;
         }
@@ -188,6 +193,31 @@ function traiterAction(socket, msg) {
             }
             break;
         }
+
+        case ACTIONS.GBROADCAST: {
+            const res = gestionnaireGroupe.addMessage(msg.group, sender, msg.msg);
+            if(res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                for (const membre of res.members) {
+                    if (membre !== sender) {
+                        const sock = getSocketByPseudo(membre);
+                        sendJson(sock, {action: ACTIONS.SERVER_GROUP_MESSAGE, group: msg.group, sender: sender, msg:msg.msg});
+                    }
+                }
+            }
+            break;
+        }
+
+        case ACTIONS.MSGS: {
+            const res = gestionnaireGroupe.getMessages(msg.group, sender);
+            if (res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                sendJson(socket, {action:ACTIONS.SERVER_GROUP_MSGS, group: res.groupName, messages: res.messages});
+            }
+            break;
+        }
     }
 }
 
@@ -223,7 +253,6 @@ var server = net.createServer((socket) => {
         if (pseudo) {
             gestionnaireGroupe.removeUser(pseudo);
 
-            // Diffusion de départ simplifiée
             broadcast({
                 sender: pseudo,
                 msg: `${pseudo} est deconnecté`,

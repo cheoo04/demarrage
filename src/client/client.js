@@ -88,6 +88,17 @@ client.on('data', function (data) {
             case ACTIONS.SERVER_GROUP_MEMBERS:
                 console.log(`Membre de ${msg.group} (${msg.members.length}) : ${msg.members.join(', ')}`);
                 break;
+
+            case ACTIONS.SERVER_GROUP_MESSAGE:
+                console.log(`GROUPE${msg.group} - ${msg.sender} : ${msg.msg}`);
+                break;
+
+            case ACTIONS.SERVER_GROUP_MSGS:
+                console.log(`Historique des messages du groupe ${msg.group} :`);
+                for (const m of msg.messages){
+                    console.log(`[${m.sender}] : ${m.msg}`);
+                }
+                break;
         }
     }
 });

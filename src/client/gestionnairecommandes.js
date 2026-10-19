@@ -95,6 +95,26 @@ function parseCommand(line, username) {
         };
     }
 
+    if (line.startsWith('gb;')) {
+        const part = line.split(';');
+        const message = line.slice(10).trim();
+        return {
+            sender: username,
+            group: part[1],
+            msg: message,
+            action: ACTIONS.GBROADCAST
+        }
+    }
+
+    if (line.startsWith('messages;')){
+        grp = line.slice(9).trim();
+        return {
+            sender: username,
+            group: grp,
+            action: ACTIONS.MSGS
+        }
+    }
+
     // Si la commande n'est pas reconnue
     return null;
 }

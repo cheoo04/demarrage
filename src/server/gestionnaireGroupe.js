@@ -90,6 +90,28 @@ function removeUser(pseudo) {
     }
 }
 
+function addMessage (groupName, sender, text){
+    const sendGrp = groupes.get(groupName);
+    if(!sendGrp){
+        return { error : `Groupe introuvable`};
+    } else if (!sendGrp.members.has(sender)){
+        return {error: 'Vous devez être membre pour écrire dans ce groupe'};
+    }
+    const msgGroupe = {sender, msg: text, date: new Date().toISOString()};
+    sendGrp.messages.push(msgGroupe);
+    return {success: true, members: Array.from(sendGrp.members)};
+}
+
+function getMessages(groupName, requester){
+    const grpMsg = groupes.get(groupName);
+    if(!grpMsg){
+        return { error : `Groupe introuvable`};
+    } else if (!sendGrp.members.has(requester)){
+        return {error: "Vous devez être membre pour consulter l'historique"};
+    }
+    return {success: true, groupName: grpMsg, messages: grpMsg.messages};
+}
+
 module.exports = {
     groupes,
     create,
@@ -97,5 +119,7 @@ module.exports = {
     join,
     getMembers,
     leave,
-    removeUser
+    removeUser,
+    addMessage,
+    getMessages
 };
