@@ -8,12 +8,195 @@ const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 const clients = new Map();
 
+
+// Trouve la socket d'un utilisateur par son pseudo
+function getSocketByPseudo(pseudo) {
+    for (const [sock, pers] of clients.entries()) {
+        if (pers === pseudo) return sock;
+    }
+    return null;
+}
+
+// Diffuse un message à tout le monde (sauf à une socket si précisé)
+function broadcast(payload, saufSocket = null) {
+    for (const sock of clients.keys()) {
+        if (sock !== saufSocket) {
+            sendJson(sock, payload);
+        }
+    }
+}
+
+
+function traiterAction(socket, msg) {
+    // Commande sans présentation
+    if (!clients.has(socket) && msg.action !== ACTIONS.CLIENT_HELLO) {
+        sendJson(socket, {
+            action: ACTIONS.SERVER_ERROR,
+            msg: 'Veillez vous presenter !'
+        });
+        socket.end();
+        return;
+    }
+
+    switch (msg.action) {
+        case ACTIONS.CLIENT_HELLO: {
+            const pseudo = msg.sender ? msg.sender.trim() : "";
+            if (!pseudo) {
+                sendJson(socket, {
+                    action: ACTIONS.SERVER_ERROR,
+                    msg: 'Veuillez renseigner un nom d"utilisateur'
+                });
+                socket.end();
+                break;
+            }
+
+            const nomExiste = Array.from(clients.values()).includes(pseudo);
+            if (nomExiste) {
+                sendJson(socket, {
+                    action: ACTIONS.SERVER_ERROR,
+                    msg: 'Cet utilisateur est deja connecté'
+                });
+                socket.end();
+                break;
+            }
+            
+            clients.set(socket, pseudo);
+            sendJson(socket, {
+                sender: pseudo,
+                action: ACTIONS.SERVER_HELLO,
+                msg: `Bienvenue ${pseudo}`
+            });
+            
+            // Diffusion d'arrivée simplifiée
+            broadcast({
+                sender: pseudo,
+                action: ACTIONS.SERVER_JOIN,
+                msg: `${pseudo} est connecté`
+            }, socket);
+            break;
+        }
+
+        case ACTIONS.CLIENT_SEND: {
+            // Recherche du destinataire simplifiée
+            const destsocket = getSocketByPseudo(msg.dest);
+            
+            if (!destsocket) {
+                sendJson(socket, {
+                    action: ACTIONS.SERVER_ERROR,
+                    msg: `L'utilisateur ${msg.dest} est introuvable ou n'est pas connecté`
+                });
+                break;
+            }
+
+            sendJson(destsocket, {
+                sender: clients.get(socket),
+                msg: msg.msg,
+                action: ACTIONS.SERVER_MESSAGE,
+            });
+            break;
+        }
+        
+        case ACTIONS.CLIENT_BROADCAST: {
+            // Diffusion générale simplifiée
+            broadcast({
+                sender: clients.get(socket),
+                msg: msg.msg,
+                action: ACTIONS.SERVER_BROADCAST
+            }, socket);
+            break;
+        }
+        
+        case ACTIONS.CLIENT_LIST_CLIENTS: {
+            sendJson(socket, {
+                sender: clients.get(socket),
+                clients: Array.from(clients.values()),
+                action: ACTIONS.SERVER_LIST_CLIENTS
+            });
+            break;
+        }
+
+        case ACTIONS.CLIENT_QUIT: {
+            sendJson(socket, {
+                sender: clients.get(socket),
+                msg: 'Vous êtes deconnecté !',
+                action: ACTIONS.SERVER_QUIT
+            });
+            socket.end();
+            break;
+        }
+
+
+        case ACTIONS.CGROUPE: {
+            const groupName = msg.group ? msg.group.trim() : "";
+            const createur = clients.get(socket);
+            const res = gestionnaireGroupe.create(groupName, createur);
+
+            if (res.error) {
+                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+            } else {
+                sendJson(socket, { action: ACTIONS.SERVER_HELLO, sender: res.sender, msg: res.msg });
+            }
+            break;
+        }
+
+        case ACTIONS.GROUPS: {
+            sendJson(socket, {
+                groups: gestionnaireGroupe.list(),
+                action: ACTIONS.SERVER_GROUPS_LIST
+            });
+            break;
+        }
+        
+        case ACTIONS.JOIN: {
+            const groupRequest = (msg.group || "").trim();
+            const requester = clients.get(socket);
+            const res = gestionnaireGroupe.join(groupRequest, requester);
+
+            if (res.error) {
+                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+            } else {
+                sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
+            }
+            break;
+        }
+        
+        case ACTIONS.MEMBERS: {
+            const membersGroup = (msg.group || '').trim();
+            const res = gestionnaireGroupe.getMembers(membersGroup);
+
+            if (res.error) {
+                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+            } else {
+                sendJson(socket, {
+                    group: res.group,
+                    members: res.members,
+                    action: ACTIONS.SERVER_GROUP_MEMBERS
+                });
+            }
+            break;
+        }
+        
+        case ACTIONS.LEAVE: {
+            const groupLeave = (msg.group || '').trim();
+            const quitter = clients.get(socket);
+            const res = gestionnaireGroupe.leave(groupLeave, quitter);
+
+            if (res.error) {
+                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+            } else {
+                sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
+            }
+            break;
+        }
+    }
+}
+
+
 var server = net.createServer((socket) => {
     debug(`CONNECTED from ${socket.remoteAddress}:${socket.remotePort}`);
     
     let buffer = '';
     socket.on('data', function (data) {
-
         buffer += data.toString();
         const messages = buffer.split('\n');
         buffer = messages.pop();
@@ -29,181 +212,8 @@ var server = net.createServer((socket) => {
                 continue;
             }
 
-            debug(`DATA received from  ${socket.remoteAddress}(${socket.remotePort}) : ${data}`);
-
-            // Commande sans présentation
-            if (!clients.has(socket) && msg.action !== ACTIONS.CLIENT_HELLO) {
-                sendJson(socket, {
-                    action: ACTIONS.SERVER_ERROR,
-                    msg: 'Veillez vous presenter !'
-                });
-                socket.end();
-                return;
-            }
-
-            switch (msg.action) {
-                case ACTIONS.CLIENT_HELLO: {
-                    const pseudo = msg.sender ? msg.sender.trim() : "";
-                    if (!pseudo) {
-                        sendJson(socket, {
-                            action: ACTIONS.SERVER_ERROR,
-                            msg: 'Veuillez renseigner un nom d"utilisateur'
-                        });
-                        socket.end();
-                        break;
-                    }
-
-                    const nomExiste = Array.from(clients.values()).includes(pseudo);
-                    if (nomExiste) {
-                        sendJson(socket, {
-                            action: ACTIONS.SERVER_ERROR,
-                            msg: 'Cet utilisateur est deja connecté'
-                        });
-                        socket.end();
-                        break;
-                    }
-                    
-                    clients.set(socket, pseudo);
-                    sendJson(socket, {
-                        sender: pseudo,
-                        action: ACTIONS.SERVER_HELLO,
-                        msg: `Bienvenue ${pseudo}`
-                    });
-                    
-                    for (const sock of clients.keys()) {
-                        if (sock !== socket) {
-                            sendJson(sock, {
-                                sender: pseudo,
-                                action: ACTIONS.SERVER_JOIN,
-                                msg: `${pseudo} est connecté`
-                            });
-                        }
-                    }
-                    break;
-                }
-
-                case ACTIONS.CLIENT_SEND: {
-                    let destsocket = null;
-                    for (const [sock, pers] of clients.entries()) {
-                        if (pers === msg.dest) {
-                            destsocket = sock;
-                            break;
-                        }
-                    }
-                    
-                    if (!destsocket) {
-                        sendJson(socket, {
-                            action: ACTIONS.SERVER_ERROR,
-                            msg: `L'utilisateur ${msg.dest} est introuvable ou n'est pas connecté`
-                        });
-                        break;
-                    }
-
-                    sendJson(destsocket, {
-                        sender: clients.get(socket),
-                        msg: msg.msg,
-                        action: ACTIONS.SERVER_MESSAGE,
-                    });
-                    break;
-                }
-                
-                case ACTIONS.CLIENT_BROADCAST: {
-                    for (const sock of clients.keys()) {
-                        if (sock !== socket) {
-                            sendJson(sock, {
-                                sender: clients.get(socket),
-                                msg: msg.msg,
-                                action: ACTIONS.SERVER_BROADCAST
-                            });
-                        }
-                    }
-                    break;
-                }
-                
-                case ACTIONS.CLIENT_LIST_CLIENTS: {
-                    const list_u = Array.from(clients.values());
-                    sendJson(socket, {
-                        sender: clients.get(socket),
-                        clients: list_u,
-                        action: ACTIONS.SERVER_LIST_CLIENTS
-                    });
-                    break;
-                }
-
-                case ACTIONS.CLIENT_QUIT: {
-                    sendJson(socket, {
-                        sender: clients.get(socket),
-                        msg: 'Vous êtes deconnecté !',
-                        action: ACTIONS.SERVER_QUIT
-                    });
-                    socket.end();
-                    break;
-                }
-
-
-                case ACTIONS.CGROUPE: {
-                    const groupName = msg.group ? msg.group.trim() : "";
-                    const createur = clients.get(socket);
-                    const res = gestionnaireGroupe.create(groupName, createur);
-
-                    if (res.error) {
-                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
-                    } else {
-                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, sender: res.sender, msg: res.msg });
-                    }
-                    break;
-                }
-
-                case ACTIONS.GROUPS: {
-                    sendJson(socket, {
-                        groups: gestionnaireGroupe.list(),
-                        action: ACTIONS.SERVER_GROUPS_LIST
-                    });
-                    break;
-                }
-                
-                case ACTIONS.JOIN: {
-                    const groupRequest = (msg.group || "").trim();
-                    const requester = clients.get(socket);
-                    const res = gestionnaireGroupe.join(groupRequest, requester);
-
-                    if (res.error) {
-                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
-                    } else {
-                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
-                    }
-                    break;
-                }
-                
-                case ACTIONS.MEMBERS: {
-                    const membersGroup = (msg.group || '').trim();
-                    const res = gestionnaireGroupe.getMembers(membersGroup);
-
-                    if (res.error) {
-                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
-                    } else {
-                        sendJson(socket, {
-                            group: res.group,
-                            members: res.members,
-                            action: ACTIONS.SERVER_GROUP_MEMBERS
-                        });
-                    }
-                    break;
-                }
-                
-                case ACTIONS.LEAVE: {
-                    const groupLeave = (msg.group || '').trim();
-                    const quitter = clients.get(socket);
-                    const res = gestionnaireGroupe.leave(groupLeave, quitter);
-
-                    if (res.error) {
-                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
-                    } else {
-                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
-                    }
-                    break;
-                }
-            }
+            debug(`DATA received from ${socket.remoteAddress}(${socket.remotePort}) : ${ligne}`);
+            traiterAction(socket, msg);
         }
     });
 
@@ -213,13 +223,12 @@ var server = net.createServer((socket) => {
         if (pseudo) {
             gestionnaireGroupe.removeUser(pseudo);
 
-            for (const sock of clients.keys()) {
-                sendJson(sock, {
-                    sender: pseudo,
-                    msg: `${pseudo} est deconnecté`,
-                    action: ACTIONS.SERVER_LEAVE,
-                });
-            }
+            // Diffusion de départ simplifiée
+            broadcast({
+                sender: pseudo,
+                msg: `${pseudo} est deconnecté`,
+                action: ACTIONS.SERVER_LEAVE,
+            });
         }
         debug(`connexion close from ${socket.remoteAddress} : ${socket.remotePort}`);
     });
