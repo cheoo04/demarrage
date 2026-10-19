@@ -2,11 +2,11 @@
 var net = require('net');
 const debug = require('debug')('server');
 const { ACTIONS, sendJson } = require('../common/protocol');
+const gestionnaireGroupe = require('./gestionnaireGroupe');
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 8080;
 const clients = new Map();
-const groupes = new Map();
 
 var server = net.createServer((socket) => {
     debug(`CONNECTED from ${socket.remoteAddress}:${socket.remotePort}`);
@@ -140,48 +140,23 @@ var server = net.createServer((socket) => {
                     break;
                 }
 
+
                 case ACTIONS.CGROUPE: {
                     const groupName = msg.group ? msg.group.trim() : "";
-                    if (!groupName) {
-                        sendJson(socket, {
-                            msg: `Veillez renseigner un nom de groupe`,
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
-                    }
-
-                    if (groupes.has(groupName)) {
-                        sendJson(socket, {
-                            msg: `Ce nom de groupe existe deja. Veillez le changer`,
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
-                    }
-
                     const createur = clients.get(socket);
-                    groupes.set(groupName, {
-                        name: groupName,
-                        creator: createur,
-                        members: new Set([createur]),
-                        messages: [],
-                        banned: new Set(),
-                        invitations: new Set(),
-                        states: [
-                            { type: 'created', user: createur, date: new Date().toISOString() }
-                        ]
-                    });
+                    const res = gestionnaireGroupe.create(groupName, createur);
 
-                    sendJson(socket, {
-                        sender: createur,
-                        msg: `Le groupe ${groupName} a été crée avec succès`,
-                        action: ACTIONS.SERVER_HELLO
-                    });
+                    if (res.error) {
+                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+                    } else {
+                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, sender: res.sender, msg: res.msg });
+                    }
                     break;
                 }
 
                 case ACTIONS.GROUPS: {
                     sendJson(socket, {
-                        groups: Array.from(groupes.keys()),
+                        groups: gestionnaireGroupe.list(),
                         action: ACTIONS.SERVER_GROUPS_LIST
                     });
                     break;
@@ -190,84 +165,42 @@ var server = net.createServer((socket) => {
                 case ACTIONS.JOIN: {
                     const groupRequest = (msg.group || "").trim();
                     const requester = clients.get(socket);
-                    const grpJoin = groupes.get(groupRequest);
+                    const res = gestionnaireGroupe.join(groupRequest, requester);
 
-                    if (!grpJoin) {
-                        sendJson(socket, {
-                            msg: `Le groupe ${groupRequest} n'existe pas.`,
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
-                    } else if (grpJoin.banned.has(requester)) {
-                        sendJson(socket, {
-                            msg: 'Vous êtes banni de ce groupe',
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
-                    } else if (grpJoin.members.has(requester)) {
-                        sendJson(socket, {
-                            msg: 'Vous êtes déjà membre',
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
+                    if (res.error) {
+                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+                    } else {
+                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
                     }
-
-                    grpJoin.members.add(requester);
-                    grpJoin.states.push({ type: 'join', user: requester, date: new Date().toISOString() });
-                    sendJson(socket, { 
-                        action: ACTIONS.SERVER_HELLO, 
-                        msg: `Vous avez rejoint ${groupRequest}`
-                    });
                     break;
                 }
                 
                 case ACTIONS.MEMBERS: {
                     const membersGroup = (msg.group || '').trim();
-                    const grpMembers = groupes.get(membersGroup);
+                    const res = gestionnaireGroupe.getMembers(membersGroup);
 
-                    // Correction du bug : on vérifie grpMembers et on renvoie grpMembers.members
-                    if (!grpMembers) {
+                    if (res.error) {
+                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+                    } else {
                         sendJson(socket, {
-                            msg: `Le groupe ${membersGroup} n'existe pas.`,
-                            action: ACTIONS.SERVER_ERROR
+                            group: res.group,
+                            members: res.members,
+                            action: ACTIONS.SERVER_GROUP_MEMBERS
                         });
-                        break;
                     }
-
-                    sendJson(socket, {
-                        group: membersGroup,
-                        members: Array.from(grpMembers.members),
-                        action: ACTIONS.SERVER_GROUP_MEMBERS
-                    });
                     break;
                 }
                 
                 case ACTIONS.LEAVE: {
                     const groupLeave = (msg.group || '').trim();
                     const quitter = clients.get(socket);
-                    const grpLeave = groupes.get(groupLeave);
+                    const res = gestionnaireGroupe.leave(groupLeave, quitter);
 
-                    if (!grpLeave) {
-                        sendJson(socket, {
-                            msg: `Le groupe ${groupLeave} n'existe pas.`,
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
-                    } else if (!grpLeave.members.has(quitter)) {
-                        sendJson(socket, {
-                            msg: `Vous n'êtes pas membre de ce groupe`,
-                            action: ACTIONS.SERVER_ERROR
-                        });
-                        break;
+                    if (res.error) {
+                        sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+                    } else {
+                        sendJson(socket, { action: ACTIONS.SERVER_HELLO, msg: res.msg });
                     }
-
-                    grpLeave.members.delete(quitter);
-                    grpLeave.states.push({ type: 'leave', user: quitter, date: new Date().toISOString() });
-                    
-                    sendJson(socket, {
-                        action: ACTIONS.SERVER_HELLO, 
-                        msg: `Vous avez quitté ${groupLeave}`
-                    });
                     break;
                 }
             }
@@ -278,10 +211,7 @@ var server = net.createServer((socket) => {
         const pseudo = clients.get(socket);
         clients.delete(socket);
         if (pseudo) {
-            // Nettoie l'utilisateur de tous les groupes dont il était membre
-            for (const grp of groupes.values()) {
-                grp.members.delete(pseudo);
-            }
+            gestionnaireGroupe.removeUser(pseudo);
 
             for (const sock of clients.keys()) {
                 sendJson(sock, {
