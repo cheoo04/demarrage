@@ -95,14 +95,20 @@ function parseCommand(line, username) {
         };
     }
 
-    if (line.startsWith('gb;')) {
-        const part = line.split(';');
-        const message = line.slice(10).trim();
-        return {
-            sender: username,
-            group: part[1],
-            msg: message,
-            action: ACTIONS.GBROADCAST
+    if (line.startsWith('bg;')) {
+        const parts = line.split(';');
+        if (parts.length >= 3) {
+            const grp = parts[1];
+            const message = parts.slice(2).join(';');
+            return {
+                sender: username,
+                group: grp,
+                msg: message,
+                action: ACTIONS.GBROADCAST
+            };
+        } else {
+            console.log('format invalide, veuillez écrire : bg;groupe;message');
+            return null;
         }
     }
 

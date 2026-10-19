@@ -106,10 +106,10 @@ function getMessages(groupName, requester){
     const grpMsg = groupes.get(groupName);
     if(!grpMsg){
         return { error : `Groupe introuvable`};
-    } else if (!sendGrp.members.has(requester)){
+    } else if (!grpMsg.members.has(requester)){
         return {error: "Vous devez être membre pour consulter l'historique"};
     }
-    return {success: true, groupName: grpMsg, messages: grpMsg.messages};
+    return {success: true, group: grpMsg, messages: grpMsg.messages};
 }
 
 module.exports = {

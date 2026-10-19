@@ -195,6 +195,7 @@ function traiterAction(socket, msg) {
         }
 
         case ACTIONS.GBROADCAST: {
+            const sender = clients.get(socket);
             const res = gestionnaireGroupe.addMessage(msg.group, sender, msg.msg);
             if(res.error){
                 sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
@@ -210,11 +211,12 @@ function traiterAction(socket, msg) {
         }
 
         case ACTIONS.MSGS: {
+            const sender = clients.get(socket);
             const res = gestionnaireGroupe.getMessages(msg.group, sender);
             if (res.error){
                 sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
             } else {
-                sendJson(socket, {action:ACTIONS.SERVER_GROUP_MSGS, group: res.groupName, messages: res.messages});
+                sendJson(socket, {action:ACTIONS.SERVER_GROUP_MSGS, group: res.group, messages: res.messages});
             }
             break;
         }
