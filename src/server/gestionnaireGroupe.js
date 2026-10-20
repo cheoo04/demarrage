@@ -112,6 +112,22 @@ function getMessages(groupName, requester){
     return {success: true, group: groupName, messages: grpMsg.messages};
 }
 
+function inviteUser(groupName, sender, dest){
+    const invGrp = groupes.get(groupName);
+    if(!invGrp){
+        return { error : `Groupe introuvable`};
+    } else if (!invGrp.members.has(sender)){
+        return {error: "Vous devez être membre pour inviter une personne"};
+    } else if (invGrp.members.has(dest)) {
+        return {error : `${dest} est déja membre`};
+    } else if (invGrp.banned.has(dest)){
+        return {error: `${dest} est banni de ce groupe`}
+    }
+    invGrp.invitations.add(dest);
+    invGrp.states.push({type: 'invite', user: sender, dest: dest, date: new Date().toISOString()});
+    return {success: true, group: groupName, dest: dest};
+}
+
 module.exports = {
     groupes,
     create,
@@ -121,5 +137,6 @@ module.exports = {
     leave,
     removeUser,
     addMessage,
-    getMessages
+    getMessages,
+    inviteUser
 };

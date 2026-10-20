@@ -99,6 +99,10 @@ client.on('data', function (data) {
                     console.log(`[${m.sender}] : ${m.msg}`);
                 }
                 break;
+
+            case ACTIONS.SERVER_INVITED:
+                console.log(`[invitation] : ${msg.msg}`);
+                break;
         }
     }
 });

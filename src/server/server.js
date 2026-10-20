@@ -222,6 +222,21 @@ function traiterAction(socket, msg) {
             }
             break;
         }
+
+        case ACTIONS.INVITE: {
+            const sender = clients.get(socket);
+            const res = gestionnaireGroupe.inviteUser(msg.group, sender, msg.dest);
+            if (res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                sendJson(socket, {action: ACTIONS.SERVER_HELLO, msg: `Invitation envoyée à ${msg.dest}`});
+                const destsocket = getSocketByPseudo(res.dest);
+                if (destsocket){
+                    sendJson(destsocket, {action: ACTIONS.SERVER_INVITED, msg: `${sender} vous invite à rejoindre le groupe ${res.group}`});
+                }
+            }
+            break;
+        }
     }
 }
 

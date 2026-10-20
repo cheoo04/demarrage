@@ -36,7 +36,8 @@ const ACTIONS = {
     SERVER_GROUP_MEMBERS: 'server-group-members',
     SERVER_GROUP_MSGS: 'server-group-msgs',
     SERVER_GROUP_STATES: 'server-group-states',
-    SERVER_GROUP_MESSAGE: 'server-group-message'
+    SERVER_GROUP_MESSAGE: 'server-group-message',
+    SERVER_INVITED: 'server-invited'
 };
 
 function sendJson(socket, obj) {

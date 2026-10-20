@@ -121,6 +121,22 @@ function parseCommand(line, username) {
         }
     }
 
+    if(line.startsWith('invite;')){
+        const parts = line.split(';');
+        if(parts.length>=3){
+            const grp = parts[1];
+            const dest = parts[2];
+            return {
+                sender: username,
+                group: grp,
+                dest: dest.trim(),
+                action: ACTIONS.INVITE
+            }
+        } else {
+            console.log('Format invalide, veillez ecrire : invite;groupe;destinataire'); 
+            return null;}
+    }
+
     // Si la commande n'est pas reconnue
     return null;
 }
