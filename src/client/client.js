@@ -103,6 +103,16 @@ client.on('data', function (data) {
             case ACTIONS.SERVER_INVITED:
                 console.log(`[invitation] : ${msg.msg}`);
                 break;
+
+            case ACTIONS.SERVER_GROUP_STATES:
+                console.log(`Événements du groupe ${msg.group} (${msg.states.length})`);
+                for (const e of msg.states) {
+                    let details = `[${e.type.toUpperCase()}] par ${e.user}`;
+                    if (e.dest) details += ` -> cible : ${e.dest}`;
+                    if (e.reason) details += ` (Raison : ${e.reason})`;
+                    console.log(`  ${details}`);
+                }
+                break;
         }
     }
 });

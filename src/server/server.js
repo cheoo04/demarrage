@@ -237,6 +237,66 @@ function traiterAction(socket, msg) {
             }
             break;
         }
+
+        case ACTIONS.KICK: {
+            const sender = clients.get(socket);
+            const res = gestionnaireGroupe.kickUser(msg.group, sender, msg.dest, msg.reason);
+            if(res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                sendJson(socket, {action: ACTIONS.SERVER_HELLO, msg: `${res.dest} a été exclu`});
+                const destsocket = getSocketByPseudo(res.dest);
+                if (destsocket){
+                    sendJson(destsocket, { action: ACTIONS.SERVER_HELLO, msg:`Vous avez été exclu de ${res.group} par ${sender}. Raison : ${res.reason}`});
+                }
+            }
+            break;
+        }
+
+        case ACTIONS.BAN: {
+            const sender = clients.get(socket);
+            const res = gestionnaireGroupe.banUser(msg.group, sender, msg.dest, msg.reason);
+            if(res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                sendJson(socket, {action: ACTIONS.SERVER_HELLO, msg: `${res.dest} a été banni`});
+                const destsocket = getSocketByPseudo(res.dest);
+                if (destsocket){
+                    sendJson(destsocket, { action: ACTIONS.SERVER_HELLO, msg:`Vous avez été banni de ${res.group} par ${sender}. Raison : ${res.reason}`});
+                }
+            }
+            break;
+        }
+
+        case ACTIONS.UNBAN: {
+            const sender = clients.get(socket);
+            const res = gestionnaireGroupe.unbanUser(msg.group, sender, msg.dest);
+            if(res.error){
+                sendJson(socket, {action: ACTIONS.SERVER_ERROR, msg: res.error});
+            } else {
+                sendJson(socket, {action: ACTIONS.SERVER_HELLO, msg: `${res.dest} n'est plus banni`});
+                const destsocket = getSocketByPseudo(res.dest);
+                if (destsocket){
+                    sendJson(destsocket, { action: ACTIONS.SERVER_HELLO, msg:`Vous n'êtes plus sur la liste des bannis de ${res.group}`});
+                }
+            }
+            break;
+        }
+
+        case ACTIONS.STATES: {
+            const sender = clients.get(socket);
+            const res = gestionnaireGroupe.getStates(msg.group, sender);
+            if (res.error) {
+                sendJson(socket, { action: ACTIONS.SERVER_ERROR, msg: res.error });
+            } else {
+                sendJson(socket, {
+                    action: ACTIONS.SERVER_GROUP_STATES,
+                    group: res.group,
+                    states: res.states
+                });
+            }
+            break;
+        }
     }
 }
 

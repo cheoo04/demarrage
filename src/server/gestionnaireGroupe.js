@@ -115,7 +115,7 @@ function getMessages(groupName, requester){
 function inviteUser(groupName, sender, dest){
     const invGrp = groupes.get(groupName);
     if(!invGrp){
-        return { error : `Groupe introuvable`};
+        return { error : `Groupe ${groupName} introuvable`};
     } else if (!invGrp.members.has(sender)){
         return {error: "Vous devez être membre pour inviter une personne"};
     } else if (invGrp.members.has(dest)) {
@@ -128,6 +128,64 @@ function inviteUser(groupName, sender, dest){
     return {success: true, group: groupName, dest: dest};
 }
 
+function kickUser(groupName, sender, dest, reason){
+    const kickGrp = groupes.get(groupName);
+    if(!kickGrp){
+        return { error : `Groupe ${groupName} introuvable`};
+    } else if (kickGrp.creator !== sender) {
+        return {error: "Seul le créateur peut exclure un membre"};
+    }else if (kickGrp.creator === dest) {
+        return {error: "On ne peut pas exclure le créateur du groupe"};
+    } else if (!kickGrp.members.has(dest)) {
+        return {error : `${dest} n'est pas un membre actuel du groupe`};
+    }
+    kickGrp.members.delete(dest);
+    kickGrp.states.push({ type: 'kick', user: sender, dest: dest, reason: reason, date: new Date().toISOString() });
+    return {success: true, group: groupName, dest: dest, reason: reason };
+}
+
+function banUser(groupName, sender, dest, reason){
+    const banGrp = groupes.get(groupName);
+    if(!banGrp){
+        return { error : `Groupe ${groupName} introuvable`};
+    } else if (banGrp.creator !== sender) {
+        return {error: "Seul le créateur peut bannir un membre"};
+    }else if (banGrp.creator === dest) {
+        return {error: "On ne peut pas bannir le créateur du groupe"};
+    } else if (!banGrp.members.has(dest)) {
+        return {error : `${dest} n'est pas un membre actuel du groupe`};
+    }
+    banGrp.members.delete(dest);
+    banGrp.banned.add(dest);
+    banGrp.states.push({ type: 'ban', user: sender, dest: dest, reason: reason, date: new Date().toISOString() });
+    return {success: true, group: groupName, dest: dest, reason: reason };
+}
+
+function unbanUser(groupName, sender, dest){
+    const unbanGrp = groupes.get(groupName);
+    if(!unbanGrp){
+        return { error : `Groupe ${groupName} introuvable`};
+    } else if (unbanGrp.creator !== sender) {
+        return {error: "Seul le créateur peut débannir un membre"};
+    }else if (!unbanGrp.banned.has(dest)) {
+        return {error: `${dest} n'est pas banni`};
+    }
+    unbanGrp.banned.delete(dest);
+    unbanGrp.states.push({ type: 'unban', user: sender, dest: dest, date: new Date().toISOString() });
+    return {success: true, group: groupName, dest: dest};
+}
+
+function getStates(groupName, requester) {
+    const grp = groupes.get(groupName);
+    if (!grp) {
+        return { error: `Groupe ${groupName} introuvable` };
+    }
+    if (!grp.members.has(requester)) {
+        return { error: "Vous devez être membre pour consulter les états" };
+    }
+    return { success: true, group: groupName, states: grp.states };
+}
+
 module.exports = {
     groupes,
     create,
@@ -138,5 +196,9 @@ module.exports = {
     removeUser,
     addMessage,
     getMessages,
-    inviteUser
+    inviteUser,
+    kickUser,
+    banUser,
+    unbanUser,
+    getStates
 };

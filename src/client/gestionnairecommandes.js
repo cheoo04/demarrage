@@ -137,7 +137,55 @@ function parseCommand(line, username) {
             return null;}
     }
 
-    // Si la commande n'est pas reconnue
+    if (line.startsWith('kick;')){
+        const parts = line.split(';');
+        if(parts.length>=4){
+            return {
+                sender: username,
+                group: parts[1],
+                dest: parts[2].trim(),
+                reason: parts.slice(3).join(';'),
+                action: ACTIONS.KICK
+            }
+        } else {
+            console.log('Format invalide, veillez ecrire : kick;groupe;destinataire;raison'); 
+            return null;}
+    }
+
+    if (line.startsWith('ban;')){
+        const parts = line.split(';');
+        if(parts.length>=4){
+            return {
+                sender: username,
+                group: parts[1],
+                dest: parts[2].trim(),
+                reason: parts.slice(3).join(';'),
+                action: ACTIONS.BAN
+            }
+        } else {
+            console.log('Format invalide, veillez ecrire : ban;groupe;destinataire;raison'); 
+            return null;}
+    }
+
+    if (line.startsWith('unban;')){
+        const parts = line.split(';');
+        if(parts.length>=3){
+            return {
+                sender: username,
+                group: parts[1],
+                dest: parts[2].trim(),
+                action: ACTIONS.UNBAN
+            }
+        } else {
+            console.log('Format invalide, veillez ecrire : unban;groupe;destinataire'); 
+            return null;}
+    
+    }
+    
+    if(line.startsWith('states;')){
+        const grp = line.slice(7).trim();
+        return { sender: username, group: grp, action: ACTIONS.STATES };
+    }
     return null;
 }
 
